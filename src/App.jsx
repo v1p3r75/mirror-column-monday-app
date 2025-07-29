@@ -5,8 +5,11 @@ import "@vibe/core/tokens";
 import { Heading, Loader } from "@vibe/core";
 import SelectColumns from "./components/SelectColumns";
 import getColumnsQuery from "./api/get-columns.query";
+import createColumnWebhook from "./api/create-columns-webhook";
+import { saveColumnMapping } from "./helpers/helpers";
 
 const monday = mondaySdk();
+const WEBHOOKS_URL = "https://5f6237f425ff.ngrok-free.app"
 
 const App = () => {
   const [context, setContext] = useState();
@@ -39,6 +42,15 @@ const App = () => {
 
 
   const onSubmit = (from, to) => {
+    const savedUrl = `${WEBHOOKS_URL}/save-column-mapping`;
+    saveColumnMapping(savedUrl, from, to);
+
+    createColumnWebhook(monday, context.boardId, from.value, WEBHOOKS_URL)
+      .then(webhookId => {
+        console.log("Webhook created with ID:", webhookId);
+        // Here you can add logic to handle the webhook creation success
+      })
+
     console.log("Submit changed:", from, to);
     
   }
@@ -49,7 +61,7 @@ const App = () => {
       <div>
         {
           context && columns.length > 0 ?
-            <SelectColumns columns={columns} fromDefaultColumn={context?.columnId} onSubmit={onSubmit} /> :
+            <SelectColumns columns={columns} defaultFromColumn={context?.columnId} onSubmit={onSubmit} /> :
             <Loader size="medium"/>
         }
       </div>
