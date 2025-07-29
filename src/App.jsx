@@ -1,42 +1,25 @@
 import React from "react";
 import { useState, useEffect, useMemo } from "react";
-import "./App.css";
 import mondaySdk from "monday-sdk-js";
 import "@vibe/core/tokens";
-import { AttentionBox, Button, Dropdown } from "@vibe/core";
+import { Heading, Loader } from "@vibe/core";
+import SelectColumns from "./components/SelectColumns";
+import getColumnsQuery from "./api/get-columns.query";
 
-// Usage of mondaySDK example, for more information visit here: https://developer.monday.com/apps/docs/introduction-to-the-sdk/
 const monday = mondaySdk();
 
 const App = () => {
   const [context, setContext] = useState();
-  const [searchValue, setSearchValue] = useState("");
-  const allOptions = useMemo(() => [{
-    value: "Red",
-    label: "Red"
-  }, {
-    value: "Orange",
-    label: "Orange"
-  }, {
-    value: "Yellow",
-    label: "Yellow"
-  }, {
-    value: "Green",
-    label: "Green"
-  }, {
-    value: "Blue",
-    label: "Blue"
-  }, {
-    value: "Indigo",
-    label: "Indigo"
-  }, {
-    value: "Violet",
-    label: "Violet"
-  }], []);
-  const options = useMemo(() => {
-    if (!searchValue) return allOptions;
-    return allOptions.filter(option => option.label.toLowerCase().includes(searchValue.toLowerCase()));
-  }, [allOptions, searchValue]);
+  const [columns, setColumns] = useState([]);
+
+  const parseColumns = (columns) => {
+    return columns.map(item => ({
+      value: item.id,
+      label: item.title,
+      type: item.type,
+      settings: item.settings_str ? JSON.parse(item.settings_str) : {}
+    }));
+  }
 
   useEffect(() => {
     // Notice this method notifies the monday platform that user gains a first value in an app.
@@ -44,28 +27,31 @@ const App = () => {
     monday.execute("valueCreatedForUser");
 
     // TODO: set up event listeners, Here`s an example, read more here: https://developer.monday.com/apps/docs/mondaylisten/
-    monday.listen("context", (res) => {
+    monday.listen("context", async (res) => {
       setContext(res.data);
       console.log("Context received:", res.data);
+      const columnsData = await getColumnsQuery(monday, res.data.boardId);
+      const parsedColumns = parseColumns(columnsData.data.boards[0].columns);
+      setColumns(parsedColumns);
     });
 
-    monday.get("itemIds").then((res) => {
-      console.log("Item IDs:", res);
-    });
-    
   }, []);
 
 
-  const onInputChange = value => setSearchValue(value);
+  const onSubmit = (from, to) => {
+    console.log("Submit changed:", from, to);
+    
+  }
+
   return (
     <div className="App">
-      <h3>Mirror Column</h3><hr />
+      <Heading color="onInverted">Mirror Column</Heading><hr />
       <div>
-        <div className="menu-container">
-            <Dropdown options={options} placeholder="From" className="dropdown-stories-styles_with-chips" onInputChange={onInputChange} />
-            <Dropdown options={options} placeholder="To" className="dropdown-stories-styles_with-chips" onInputChange={onInputChange} />
-        </div>
-        <Button>Make Copy</Button>
+        {
+          context && columns.length > 0 ?
+            <SelectColumns columns={columns} fromDefaultColumn={context?.columnId} onSubmit={onSubmit} /> :
+            <Loader size="medium"/>
+        }
       </div>
     </div>
   );
